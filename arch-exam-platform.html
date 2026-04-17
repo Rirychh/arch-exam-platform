@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建築師考試練習平台</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { font-family: 'Noto Serif TC', Georgia, '微軟正黑體', serif; background: #f9fafb; }
+  select, input, button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #f1f1f1; }
+  ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useEffect, useRef } = React;
+
+const BANK = {
+  "建築結構": [
+    { id:101, yr:2025, diff:"中", isNew:true,
+      q:"依我國耐震設計規範，建築物在強震中受損後，其自振週期將如何變化？",
+      opts:["拉長，因結構損傷使勁度降低","縮短，因裂縫使質量減少","不變，週期只由質量決定","不確定，需視地震波頻率而定"],
+      ans:0, tags:["耐震","自振週期"],
+      exp:"結構受損後裂縫增加，有效勁度降低。依 T=2π√(m/k)，勁度 k 減少則週期 T 拉長。此現象使震後建築物更易與長週期地震波共振，是震後立即評估結構安全的重要指標。" },
+    { id:102, yr:2025, diff:"難", isNew:true,
+      q:"天然橡膠隔震墊（NRB）與鉛心橡膠隔震墊（LRB）相比，下列何者正確？",
+      opts:["NRB阻尼比大於LRB","NRB阻尼比小於LRB，因鉛心提供額外塑性消能","兩者阻尼比相同","LRB不能用於高層建築"],
+      ans:1, tags:["隔震","LRB","阻尼"],
+      exp:"天然橡膠隔震墊阻尼比約2–5%；鉛心橡膠隔震墊因鉛心塑性變形消能，阻尼比可達20–30%。NRB阻尼確實小於LRB。隔震系統不適用於軟弱地盤及超高層建築。" },
+    { id:103, yr:2025, diff:"易", isNew:true,
+      q:"有關材料性質，下列敘述何者正確？",
+      opts:["應變硬化指材料因溫度改變在相同受力下應變降低","進行韌性設計不得採用混凝土等脆性材料","若加載與變形關係保持線性，則材料必處於彈性階段","高韌性比表示極限強度遠高於降伏強度"],
+      ans:2, tags:["材料性質","彈性"],
+      exp:"線性加載–變形關係即虎克定律，必然在彈性階段。應變硬化是材料降伏後繼續加載強度提升（非溫度效應）。混凝土配合箍筋圍束仍可實現韌性。韌性比指極限應變/降伏應變，非強度比。" },
+    { id:104, yr:2025, diff:"難", isNew:true,
+      q:"關於高層建築耐震設計，下列敘述何者正確？",
+      opts:["超高層建築自振頻率高於低矮建築","高層建築在強震受損後自振週期會拉長","超高層建築設計以耐震為最主要考量","頂樓裝設TMD可直接改善耐震性能"],
+      ans:1, tags:["高層建築","耐震"],
+      exp:"高層建築質量大、勁度相對低，自振週期較長（頻率較低）。受損後勁度進一步降低，週期更拉長。超高層以抗風設計為主。調諧質量阻尼器（TMD）改善的是風致振動，非耐震性能。" },
+    { id:105, yr:2024, diff:"中",
+      q:"承重牆結構系統中，關於上下樓層牆體佈置的正確原則為何？",
+      opts:["上下牆體可自由錯位，靠樓板傳力即可","牆體錯位有利於採光與空間使用","上下相鄰樓層的牆體應儘量垂直對齊","承重牆系統不需考慮垂直對齊問題"],
+      ans:2, tags:["承重牆","傳力路徑"],
+      exp:"承重牆的載重傳遞路徑必須連續且垂直對齊。若上下牆體錯位，轉換構件須承受極大的彎矩與剪力，設計困難且不符合結構效率原則。" },
+    { id:106, yr:2023, diff:"難",
+      q:"依我國建築技術規則，「韌性容量 R 值」主要反映哪項特性？",
+      opts:["基礎承載能力","設計地震力的載重組合係數","結構系統的消能能力與變形能力","建築材料的抗壓強度"],
+      ans:2, tags:["耐震","韌性","設計規範"],
+      exp:"R 值（結構系統韌性係數）反映結構超過彈性範圍後的消能能力。R 值越高，設計地震力可相應折減，但須確保結構具備對應的韌性細部。特殊彎矩構架 R 值可達8。" },
+    { id:107, yr:2022, diff:"難",
+      q:"「強柱弱梁」設計原則的核心目的為何？",
+      opts:["加快施工速度並減少鋼筋用量","讓柱先降伏以保護梁不受損","確保塑性鉸優先在梁端形成，避免軟層崩塌機制","增加建築物的整體側向勁度"],
+      ans:2, tags:["耐震","強柱弱梁","塑性鉸"],
+      exp:"強柱弱梁要求柱彎矩強度大於梁，使塑性鉸優先在梁端形成。若柱先降伏（弱柱強梁），形成「軟層破壞機制」，某樓層集中大變形，易導致整棟崩塌。是耐震設計最重要的概念之一。" },
+    { id:108, yr:2021, diff:"易",
+      q:"鋼筋混凝土簡支梁承受均布載重時，最大彎矩發生在何處？",
+      opts:["距支承 1/3 跨處","支承端","距支承 1/4 跨處","跨度中央"],
+      ans:3, tags:["梁","彎矩","RC"],
+      exp:"均布載重簡支梁的彎矩圖呈拋物線，最大值在跨度中央（L/2 處），Mmax = wL²/8。端部彎矩為零。這是梁中央底部需要較多受拉鋼筋的原因。" },
+    { id:109, yr:2020, diff:"中",
+      q:"懸臂梁在固定端的內力分布，下列何者正確？",
+      opts:["彎矩為零，剪力最大","彎矩最大，剪力為零","兩者均為零","彎矩最大，剪力最大"],
+      ans:3, tags:["懸臂","彎矩","剪力"],
+      exp:"懸臂梁固定端同時承受最大彎矩（M=PL 或 wL²/2）與最大剪力（V=P 或 wL）。自由端彎矩為零。設計時固定端的配筋與連接最為關鍵。" },
+    { id:110, yr:2019, diff:"難",
+      q:"基礎隔震系統延長結構自振週期的主要目的為何？",
+      opts:["增加結構阻尼以消散更多地震能量","使結構遠離地震主要能量頻段，降低上部結構加速度","增加勁度以直接抵抗地震力","加深基礎以增加穩定性"],
+      ans:1, tags:["隔震","週期","耐震策略"],
+      exp:"隔震裝置將自振週期從 0.3–0.5 秒延長至 2–4 秒，遠離地震能量集中的短週期區，上部結構加速度大幅降低，有效保護建築與設備。" },
+  ],
+  "法規": [
+    { id:201, yr:2025, diff:"易", isNew:true,
+      q:"依建築法規定，申請建造執照之建築物平面、立面、剖面圖，比例尺最小不得小於多少？",
+      opts:["1/200","1/30","1/100","1/50"],
+      ans:0, tags:["建築法","執照申請","圖面比例"],
+      exp:"依建築法第30條，申請建造執照時，建築物平面、立面、剖面圖的比例尺最小不得小於1/200。此規定確保審查機關能清楚判讀設計內容，避免圖面過小細節不清。" },
+    { id:202, yr:2025, diff:"中", isNew:true,
+      q:"依建築法規定，主管建築機關收到申請建造執照書件後，至多應於幾日內審查完竣？",
+      opts:["30日","5日","10日","15日"],
+      ans:2, tags:["建築法","建造執照","行政期限"],
+      exp:"依建築法第33條，主管建築機關應於收件日起10日內審查完竣，合格者即發給執照。此規定保障行政效率，避免建築申請久懸未決。" },
+    { id:203, yr:2025, diff:"難", isNew:true,
+      q:"依建築法規定，起造人領得建造執照後，下列何種變更毋需申報主管機關備案？",
+      opts:["變更監造人","變更起造人","變更承造人","變更設計人"],
+      ans:3, tags:["建築法","建造執照","設計監造"],
+      exp:"起造人、承造人、監造人的變更均須申報備案；設計人完成設計後職責即告完成，後續工程由監造人負責，故設計人變更毋需備案。此題考驗各方角色法定義務差異。" },
+    { id:204, yr:2025, diff:"易", isNew:true,
+      q:"依建築法規定，建築基地面積畸零狹小不合規定者，下列何者正確？",
+      opts:["非與鄰接土地協議調整地形或合併使用達規定最小面積，不得建築","得申請建蔽率減免後建築","得申請主管機關特別許可後建築","由主管機關代為整合相鄰地主"],
+      ans:0, tags:["建築法","畸零地","基地合并"],
+      exp:"依建築法第44條，建築基地面積畸零狹小不合規定者，非與鄰接土地協議調整地形或合併使用，達到規定最小面積之寬度及深度，不得建築。此規定防止不合理的零散基地開發。" },
+    { id:205, yr:2024, diff:"中",
+      q:"依建築法規定，建築工程中必須勘驗部分，應由承造人會同何者按時申報？",
+      opts:["工地主任","起造人","設計人","監造人"],
+      ans:3, tags:["建築法","勘驗","監造"],
+      exp:"依建築法第56條，建築工程中必須勘驗部分，應由承造人會同監造人（建築師）按時申報，方得繼續施工。監造人在施工階段負責監督工程品質符合設計圖說。" },
+    { id:206, yr:2024, diff:"難",
+      q:"依建築師法規定，下列何種情形不得作為廢止建築師證書之事由？",
+      opts:["受監護或輔助宣告，尚未撤銷","已喪失中華民國國籍","受破產宣告，尚未復權","罹患精神疾病，經認定不能執行業務"],
+      ans:1, tags:["建築師法","執照廢止","資格"],
+      exp:"依建築師法，得廢止建築師證書之事由包括：受監護宣告、受破產宣告、罹患精神疾病不能執行業務等。「喪失國籍」並非廢止事由，建築師資格不以持有中華民國國籍為前提。" },
+    { id:207, yr:2023, diff:"易",
+      q:"依無障礙設施設計規範，無障礙樓梯的級高（R）及級深（T），何者符合規定？",
+      opts:["R 18cm，T 26cm","R 16cm，T 24cm","R 16cm，T 26cm","R 18cm，T 24cm"],
+      ans:2, tags:["無障礙","樓梯","設計規範"],
+      exp:"無障礙樓梯規範：級高 R 不得大於16公分，級深 T 不得小於26公分。此規定較一般樓梯更嚴格，確保行動不便者能安全通行。" },
+    { id:208, yr:2022, diff:"中",
+      q:"依建築法規定，建築工程部分完竣後可供獨立使用者，得核發何種執照？",
+      opts:["臨時使用執照","特種使用執照","雜項使用執照","部分使用執照"],
+      ans:3, tags:["建築法","使用執照","部分完工"],
+      exp:"依建築法第70條之1，建築工程部分完竣後可供獨立使用者，得核發部分使用執照。常見於大型開發分期施工，讓先完工部分可提前使用。" },
+    { id:209, yr:2021, diff:"難",
+      q:"依實施區域計畫地區建築管理辦法，自用農舍高度限制為何？",
+      opts:["2層且不超過8公尺","4層且不超過16公尺","2層且不超過10公尺","3層且不超過12公尺"],
+      ans:3, tags:["農舍","區域計畫","高度限制"],
+      exp:"依辦法規定，自用農舍高度不得超過3層樓並不得超過12公尺，總樓地板面積不得超過495平方公尺，建築面積不得超過耕地面積10%。" },
+    { id:210, yr:2020, diff:"中",
+      q:"依原有合法建築物公共安全改善辦法，增設直通樓梯不計入建築面積，但增加之面積不得大於多少？",
+      opts:["原有建築面積1/3或200平方公尺","原有建築面積1/4或150平方公尺","原有建築面積1/5或100平方公尺","原有建築面積1/5或300平方公尺"],
+      ans:2, tags:["公共安全","既有建築","樓梯改善"],
+      exp:"依辦法規定，增設之直通樓梯不計入建築面積，但增加之面積不得大於原有建築面積1/5或100平方公尺（取較小者）。" },
+  ],
+  "建築構造": [
+    { id:301, yr:2025, diff:"中", isNew:true,
+      q:"下列有關鋼材力學性能之描述，何者正確？",
+      opts:["鋼材降伏強度愈高，伸長率趨於愈低","鋼材降伏強度愈低，降伏比趨於愈高","鋼材降伏強度愈高，應變硬化趨於愈顯著","鋼材降伏強度愈低，厚度方向斷面縮率趨於愈低"],
+      ans:0, tags:["鋼材","材料性質","延展性"],
+      exp:"高降伏強度鋼材通常以犧牲延展性（伸長率）換取強度，伸長率趨於降低。這是高強度鋼應用於耐震結構時需謹慎評估的原因——過低延展性可能導致脆性破壞。" },
+    { id:302, yr:2025, diff:"易", isNew:true,
+      q:"有關玻璃採光特性，下列何者正確？",
+      opts:["加入微量鐵元素可達到強化玻璃的安全效果","可見光反射率越高，造成環境光害程度愈大","天窗與外牆開窗面積相同時，採光效果完全相同","反射玻璃的可見光穿透率優於一般透明玻璃"],
+      ans:1, tags:["玻璃","採光","光害"],
+      exp:"可見光反射率越高（如鏡面玻璃），反射光越強，對周邊建築、道路使用者造成的眩光（光害）越嚴重。加鐵元素製造的是吸熱玻璃，非強化玻璃。" },
+    { id:303, yr:2025, diff:"難", isNew:true,
+      q:"下列四種建材就相同厚度之隔熱性能排序（由優至劣），何者正確？",
+      opts:["發泡聚苯乙烯 > 泡沫混凝土ALC > 紅磚 > 普通混凝土","紅磚 > 普通混凝土 > ALC > 發泡聚苯乙烯","普通混凝土 > 紅磚 > ALC > 發泡聚苯乙烯","ALC > 紅磚 > 發泡聚苯乙烯 > 普通混凝土"],
+      ans:0, tags:["隔熱材料","熱傳導率","建材比較"],
+      exp:"隔熱性能取決於熱傳導率λ（越低越好）：發泡聚苯乙烯λ≈0.04、ALC λ≈0.16、紅磚λ≈0.6、普通混凝土λ≈1.6（W/m·K）。普通混凝土導熱性最高，隔熱性能最差。" },
+    { id:304, yr:2025, diff:"中", isNew:true,
+      q:"關於玻璃工程，下列敘述何者錯誤？",
+      opts:["膠合玻璃也可作為安全玻璃使用","強化玻璃是平板玻璃加熱後急速冷卻製成，耐衝擊強度達普通玻璃3～4倍","色板玻璃於原料中添加著色劑製成，可作為吸熱玻璃","鋼絲網玻璃是用浮式法（Float Process）製成"],
+      ans:3, tags:["玻璃","防火","製程"],
+      exp:"鋼絲網玻璃是用壓延法製成，在玻璃壓製成型過程中埋入鋼絲網，而非浮式法（Float Process 是製造一般平板玻璃的標準製程）。" },
+    { id:305, yr:2025, diff:"易", isNew:true,
+      q:"外牆常用「二丁掛磁磚」進行立面設計，其標準尺寸為何？",
+      opts:["45×95mm","100×100mm","60×108mm","60×227mm"],
+      ans:3, tags:["磁磚","外牆","材料規格"],
+      exp:"二丁掛磁磚標準尺寸為60×227mm（高×長），是台灣外牆磁磚最常見的規格。「二丁」源自日文，廣泛用於建築外牆面磚設計。" },
+    { id:306, yr:2024, diff:"中",
+      q:"建築施工詳圖中，金屬材料標示「6063-T5」通常是指何種材料？",
+      opts:["鍍鋅鋼","輕鋼構","鋁擠型","角鋼"],
+      ans:2, tags:["鋁型材","材料標示","金屬工程"],
+      exp:"6063是鋁合金系列代號（Al-Mg-Si系），T5代表人工時效硬化的熱處理狀態。6063-T5鋁擠型是建築用鋁型材（門窗、帷幕牆、格柵等）最常見的規格。" },
+    { id:307, yr:2023, diff:"難",
+      q:"關於建築物減碳實現方式，下列敘述何者錯誤？",
+      opts:["幾乎所有蘊含碳排放在初始建造階段發生，運營排放隨使用年限累積","蘊含碳可透過優化結構設計減少材料使用，或選用低碳建材來降低","運營能源節約可透過節能設備、再生能源及絕熱材料優化實現","運營能源節約也可透過減少材料使用來降低蘊含能源"],
+      ans:3, tags:["碳排放","蘊含碳","永續建築"],
+      exp:"運營能源（Operational Energy）指建築使用期間消耗的能源；「減少材料使用」降低的是蘊含能源（Embodied Energy）。兩者是不同的碳排範疇，不應混淆。" },
+    { id:308, yr:2022, diff:"易",
+      q:"下列鋼筋混凝土構造之混凝土材料性質，何者正確？",
+      opts:["水密性低，不能保護鋼筋","抗拉強度高，比重為2.3 g/cm³","乾縮現象只在養護階段發生","可以保護耐火性差的鋼筋"],
+      ans:3, tags:["RC","混凝土","耐火"],
+      exp:"混凝土對鋼筋有雙重保護：①物理保護——保護層隔絕腐蝕因子；②耐火保護——混凝土導熱性低，可延緩高溫傳遞給鋼筋。鋼材約300°C起強度即開始顯著降低。" },
+    { id:309, yr:2021, diff:"中",
+      q:"有關「高性能防音綠建材」標章，下列何者不屬於吸音材料？",
+      opts:["礦纖板","穿孔鋁板","橡膠緩衝材","玻璃棉"],
+      ans:2, tags:["吸音材料","綠建材","聲學"],
+      exp:"玻璃棉、礦纖板、穿孔鋁板（配合背後空腔）均屬吸音建材。橡膠緩衝材屬「衝擊音絕緣材」，用於隔絕樓板撞擊音，功能不同。" },
+    { id:310, yr:2020, diff:"難",
+      q:"下列有關紅磚敘述，何者正確？",
+      opts:["空心紅磚設計為中空，強度高且重量輕","隔熱性與耐火性低，不適合作為牆體材料","使用於結構牆體時，開口部位置與大小不受限","原料為黏土，以練土機拌合，壓製成型，乾燥後窯燒製成"],
+      ans:3, tags:["紅磚","材料","製程"],
+      exp:"紅磚製程：黏土→練土機拌合→成形機壓製→乾燥→窯燒。紅磚具良好隔熱性與耐火性；作為結構牆體時開口受限；空心磚重量較輕但強度通常低於實心磚。" },
+  ],
+};
+
+const TABS = [
+  { key:"建築結構", label:"結構", icon:"⬡", accent:"#1e40af", light:"#dbeafe", mid:"#93c5fd" },
+  { key:"法規",     label:"法規", icon:"⚖", accent:"#6d28d9", light:"#ede9fe", mid:"#c4b5fd" },
+  { key:"建築構造", label:"構造", icon:"◧", accent:"#065f46", light:"#d1fae5", mid:"#6ee7b7" },
+];
+const DIFF = {
+  易:{ text:"#14532d", bg:"#dcfce7", border:"#86efac" },
+  中:{ text:"#78350f", bg:"#fef3c7", border:"#fcd34d" },
+  難:{ text:"#7f1d1d", bg:"#fee2e2", border:"#fca5a5" },
+};
+const L = "ABCD";
+const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+async function callAI(q, subj) {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",
+        max_tokens:1000,
+        messages:[{ role:"user", content:
+          `你是台灣建築師高考「${subj}」科目資深教授。以繁體中文約220字依序說明：①核心概念 ②解題邏輯（各選項錯誤原因）③規範依據（如有）④實務應用。\n\n題目：${q.q}\n正確答案：${L[q.ans]}. ${q.opts[q.ans]}` }]
+      }),
+    });
+    const d = await res.json();
+    return d.content?.[0]?.text ?? "（無法取得AI解析，請稍後再試）";
+  } catch(e) {
+    return "（AI解析暫時無法使用，請確認網路連線）";
+  }
+}
+
+const SK = { 建築結構:"wq_struct", 法規:"wq_law", 建築構造:"wq_const" };
+function loadWrong(subj) {
+  try { return new Set(JSON.parse(localStorage.getItem(SK[subj]) || "[]")); } catch { return new Set(); }
+}
+function saveWrong(subj, set) {
+  try { localStorage.setItem(SK[subj], JSON.stringify([...set])); } catch {}
+}
+
+function SubjectPanel({ tab }) {
+  const questions = BANK[tab.key];
+  const acc=tab.accent, lgt=tab.light, mid=tab.mid;
+
+  const [page, setPage]       = useState("list");
+  const [fDiff, setFDiff]     = useState("");
+  const [fYear, setFYear]     = useState("");
+  const [search, setSearch]   = useState("");
+  const [selQ, setSelQ]       = useState(null);
+  const [detBack, setDetBack] = useState("list");
+  const [shown, setShown]     = useState(false);
+  const [aiText, setAiText]   = useState("");
+  const [aiLoad, setAiLoad]   = useState(false);
+  const [examQs, setExamQs]   = useState([]);
+  const [eIdx, setEIdx]       = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [secs, setSecs]       = useState(0);
+  const [live, setLive]       = useState(false);
+  const [result, setResult]   = useState(null);
+  const [wrong, setWrong]     = useState(() => loadWrong(tab.key));
+  const timerRef              = useRef(null);
+
+  useEffect(() => {
+    if (live) { timerRef.current = setInterval(() => setSecs(s => s+1), 1000); }
+    else clearInterval(timerRef.current);
+    return () => clearInterval(timerRef.current);
+  }, [live]);
+
+  const toggleWrong = id => {
+    const n = new Set(wrong);
+    n.has(id) ? n.delete(id) : n.add(id);
+    setWrong(n); saveWrong(tab.key, n);
+  };
+
+  const allYrs = [...new Set(questions.map(q => q.yr))].sort((a,b) => b-a);
+
+  const filtered = questions.filter(q => {
+    if (fDiff && q.diff !== fDiff) return false;
+    if (fYear && q.yr !== parseInt(fYear)) return false;
+    if (search.trim() && !q.q.includes(search) && !q.tags.some(t=>t.includes(search))) return false;
+    return true;
+  });
+
+  function openDetail(q, back) {
+    setSelQ(q); setDetBack(back ?? "list");
+    setShown(false); setAiText(""); setAiLoad(false);
+    setPage("detail");
+  }
+
+  async function doAI() {
+    if (aiLoad) return;
+    setAiLoad(true);
+    const txt = await callAI(selQ, tab.key);
+    setAiText(txt); setAiLoad(false);
+  }
+
+  function startExam(pool) {
+    const qs = [...pool].sort(()=>Math.random()-.5).slice(0, Math.min(pool.length, 10));
+    setExamQs(qs); setEIdx(0); setAnswers({}); setSecs(0); setLive(true); setResult(null);
+    setPage("exam");
+  }
+
+  function submit() {
+    setLive(false);
+    const res = examQs.map(q => ({ ...q, ua:answers[q.id], ok:answers[q.id]===q.ans }));
+    const n = new Set([...wrong, ...res.filter(r=>!r.ok).map(r=>r.id)]);
+    setWrong(n); saveWrong(tab.key, n);
+    setResult({ res, score:res.filter(r=>r.ok).length, total:res.length, time:secs });
+    setPage("result");
+  }
+
+  const Pill = ({ children, color=acc, bg=lgt, border=mid, style:s }) => (
+    <span style={{ display:"inline-flex",alignItems:"center",fontSize:11,padding:"2px 8px",
+      borderRadius:4,fontFamily:"monospace",fontWeight:600,color,background:bg,
+      border:`1px solid ${border}`,...s }}>{children}</span>
+  );
+
+  const DPill = ({ d }) => (
+    <span style={{ display:"inline-flex",alignItems:"center",fontSize:11,padding:"2px 8px",
+      borderRadius:4,fontFamily:"monospace",fontWeight:600,
+      color:DIFF[d].text,background:DIFF[d].bg,border:`1px solid ${DIFF[d].border}` }}>{d}</span>
+  );
+
+  const TopBar = ({ title, onBack, right }) => (
+    <div style={{ display:"flex",alignItems:"center",gap:10,padding:"12px 16px",
+      borderBottom:"1px solid #e5e7eb",background:"#fff",position:"sticky",top:0,zIndex:10 }}>
+      {onBack && <button onClick={onBack} style={{ background:"none",border:"none",color:acc,
+        fontSize:13,cursor:"pointer",fontFamily:"monospace",padding:0 }}>← 返回</button>}
+      <span style={{ flex:1,fontWeight:700,fontSize:14 }}>{title}</span>
+      {right}
+    </div>
+  );
+
+  const Card = ({ q, back }) => {
+    const isW = wrong.has(q.id);
+    return (
+      <div onClick={()=>openDetail(q,back)} style={{ background:"#fff",borderRadius:8,
+        padding:"13px 14px",marginBottom:8,cursor:"pointer",transition:"all .15s",
+        border:`1px solid ${isW?"#fca5a5":"#e5e7eb"}`,
+        borderLeft:`3px solid ${isW?"#ef4444":acc}` }}>
+        <div style={{ display:"flex",gap:5,flexWrap:"wrap",alignItems:"center",marginBottom:8 }}>
+          <Pill>{q.yr}</Pill>
+          <DPill d={q.diff} />
+          {q.isNew && <Pill color="#6d28d9" bg="#ede9fe" border="#c4b5fd">2025新</Pill>}
+          {isW && <Pill color="#dc2626" bg="#fee2e2" border="#fca5a5" style={{marginLeft:"auto"}}>✗ 錯題</Pill>}
+        </div>
+        <p style={{ fontSize:13,lineHeight:1.65,color:"#374151",margin:0 }}>{q.q}</p>
+        <div style={{ display:"flex",gap:5,marginTop:7,flexWrap:"wrap" }}>
+          {q.tags.map(t=><span key={t} style={{ fontSize:11,color:"#9ca3af",fontFamily:"monospace" }}>#{t}</span>)}
+        </div>
+      </div>
+    );
+  };
+
+  const OptBtn = ({ o, i, ua, revealed, onClick }) => {
+    const isCor = revealed && i===selQ.ans;
+    const isDim = revealed && i!==selQ.ans;
+    const isSel = !revealed && ua===i;
+    return (
+      <div onClick={revealed?undefined:onClick} style={{ display:"flex",alignItems:"flex-start",
+        gap:11,padding:"12px 14px",borderRadius:8,fontSize:13,lineHeight:1.55,marginBottom:8,
+        cursor:revealed?"default":"pointer",transition:"all .15s",opacity:isDim?.4:1,
+        color:isCor?"#166534":isSel?acc:"#374151",
+        background:isCor?"#f0fdf4":isSel?lgt:"#f9fafb",
+        border:`1px solid ${isCor?"#4ade80":isSel?mid:"#e5e7eb"}` }}>
+        <span style={{ fontFamily:"monospace",fontWeight:700,minWidth:16,fontSize:13,
+          color:isCor?"#166534":isSel?acc:"#9ca3af" }}>{L[i]}</span>
+        <span style={{ flex:1 }}>{o}</span>
+        {isCor && <span style={{ fontWeight:800 }}>✓</span>}
+      </div>
+    );
+  };
+
+  // LIST
+  if (page === "list") return (
+    <div style={{ background:"#f9fafb",minHeight:"100%",paddingBottom:80 }}>
+      <TopBar title={`${tab.key}（${filtered.length} 題）`}
+        right={<button onClick={()=>startExam(filtered)} style={{ padding:"6px 14px",
+          background:acc,color:"#fff",border:"none",borderRadius:6,fontSize:12,
+          fontWeight:700,cursor:"pointer" }}>模擬考 ▶</button>} />
+
+      <div style={{ padding:"10px 14px",display:"flex",gap:7,flexWrap:"wrap",
+        borderBottom:"1px solid #e5e7eb",background:"#fff" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="搜尋題目或 #標籤…"
+          style={{ flex:"1 1 150px",padding:"7px 11px",background:"#f9fafb",
+            border:"1px solid #d1d5db",borderRadius:7,fontSize:13,color:"#111",outline:"none" }} />
+        <select value={fYear} onChange={e=>setFYear(e.target.value)}
+          style={{ padding:"7px 9px",background:"#f9fafb",border:"1px solid #d1d5db",
+            borderRadius:7,fontSize:12,color:"#374151",outline:"none" }}>
+          <option value="">全部年份</option>
+          {allYrs.map(y=><option key={y} value={y}>{y} 年</option>)}
+        </select>
+        <select value={fDiff} onChange={e=>setFDiff(e.target.value)}
+          style={{ padding:"7px 9px",background:"#f9fafb",border:"1px solid #d1d5db",
+            borderRadius:7,fontSize:12,color:"#374151",outline:"none" }}>
+          <option value="">全部難度</option>
+          {["易","中","難"].map(d=><option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+
+      <div style={{ display:"flex",gap:6,padding:"10px 14px",background:lgt,
+        borderBottom:`1px solid ${mid}` }}>
+        {[["全部",questions.length],["2025新",questions.filter(q=>q.isNew).length],["錯題",wrong.size]].map(([lbl,n])=>(
+          <div key={lbl} style={{ flex:1,textAlign:"center",background:"#fff",borderRadius:6,
+            padding:"8px 4px",border:`1px solid ${mid}` }}>
+            <div style={{ fontFamily:"monospace",fontSize:18,fontWeight:700,color:acc }}>{n}</div>
+            <div style={{ fontSize:10,color:"#6b7280",marginTop:1 }}>{lbl}</div>
+          </div>
+        ))}
+        {wrong.size > 0 && (
+          <button onClick={()=>startExam(questions.filter(q=>wrong.has(q.id)))}
+            style={{ flex:1,padding:"8px 4px",background:"#fee2e2",color:"#dc2626",
+              border:"1px solid #fca5a5",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer" }}>
+            ⚠ 錯題練習
+          </button>
+        )}
+      </div>
+
+      <div style={{ padding:"12px 14px" }}>
+        {filtered.length===0
+          ? <p style={{ textAlign:"center",padding:"60px",color:"#9ca3af",fontFamily:"monospace",fontSize:13 }}>查無符合題目</p>
+          : filtered.map(q=><Card key={q.id} q={q} back="list" />)}
+      </div>
+
+      <div style={{ position:"sticky",bottom:0,background:"#fff",borderTop:"1px solid #e5e7eb",padding:"10px 14px" }}>
+        <button onClick={()=>startExam(filtered)} style={{ width:"100%",padding:"12px",
+          background:acc,color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer" }}>
+          從篩選結果出題（{Math.min(filtered.length,10)} 題）
+        </button>
+      </div>
+    </div>
+  );
+
+  // DETAIL
+  if (page==="detail" && selQ) {
+    const q=selQ; const isW=wrong.has(q.id);
+    return (
+      <div style={{ background:"#f9fafb",minHeight:"100%",paddingBottom:40 }}>
+        <TopBar title={tab.key} onBack={()=>setPage(detBack)}
+          right={<button onClick={()=>toggleWrong(q.id)}
+            style={{ fontSize:11,padding:"4px 9px",borderRadius:4,background:"none",
+              border:`1px solid ${isW?"#fca5a5":"#d1d5db"}`,
+              color:isW?"#dc2626":"#6b7280",fontFamily:"monospace",cursor:"pointer" }}>
+            {isW?"移出錯題":"標記錯題"}</button>} />
+        <div style={{ padding:"16px 14px 40px" }}>
+          <div style={{ display:"flex",gap:5,flexWrap:"wrap",alignItems:"center",marginBottom:14 }}>
+            <Pill>{q.yr}</Pill><DPill d={q.diff} />
+            {q.isNew && <Pill color="#6d28d9" bg="#ede9fe" border="#c4b5fd">2025新題</Pill>}
+            <span style={{ marginLeft:"auto",fontFamily:"monospace",fontSize:11,color:"#9ca3af" }}>解：{L[q.ans]}</span>
+          </div>
+          <p style={{ fontSize:15,lineHeight:1.8,fontWeight:700,marginBottom:18 }}>{q.q}</p>
+          {q.opts.map((o,i)=><OptBtn key={i} o={o} i={i} ua={undefined} revealed={shown} onClick={()=>setShown(true)} />)}
+          {!shown
+            ? <button onClick={()=>setShown(true)} style={{ width:"100%",padding:"12px",background:acc,
+                color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer" }}>顯示答案與解析</button>
+            : <>
+                <div style={{ background:lgt,border:`1px solid ${mid}`,borderRadius:8,padding:14,margin:"14px 0" }}>
+                  <div style={{ fontFamily:"monospace",fontSize:11,color:acc,letterSpacing:".12em",marginBottom:8 }}>// 基礎解析</div>
+                  <p style={{ fontSize:13,lineHeight:1.8,color:"#374151",margin:0 }}>{q.exp}</p>
+                </div>
+                <div style={{ display:"flex",gap:5,flexWrap:"wrap",marginBottom:14 }}>
+                  {q.tags.map(t=><span key={t} style={{ fontSize:11,color:"#9ca3af",fontFamily:"monospace" }}>#{t}</span>)}
+                </div>
+                {!aiText && !aiLoad && (
+                  <button onClick={doAI} style={{ width:"100%",padding:"10px",background:"#fff",color:acc,
+                    border:`1px solid ${mid}`,borderRadius:8,fontSize:13,cursor:"pointer" }}>
+                    🤖 AI 教授深度解析
+                  </button>
+                )}
+                {aiLoad && <p style={{ textAlign:"center",padding:12,color:"#9ca3af",fontFamily:"monospace",fontSize:13 }}>⏳ AI 解析中…</p>}
+                {aiText && (
+                  <div style={{ background:"#fff",border:`1px solid ${mid}`,borderRadius:8,padding:14,marginTop:10 }}>
+                    <div style={{ fontFamily:"monospace",fontSize:11,color:acc,letterSpacing:".12em",marginBottom:8 }}>// AI 教授深度解析</div>
+                    <p style={{ fontSize:13,lineHeight:1.85,color:"#374151",whiteSpace:"pre-wrap",margin:0 }}>{aiText}</p>
+                  </div>
+                )}
+              </>}
+        </div>
+      </div>
+    );
+  }
+
+  // EXAM
+  if (page==="exam") {
+    const q=examQs[eIdx]; const ua=answers[q?.id];
+    const answeredCount=Object.keys(answers).length;
+    return (
+      <div style={{ background:"#f9fafb",minHeight:"100%",paddingBottom:20 }}>
+        <div style={{ display:"flex",alignItems:"center",gap:10,padding:"12px 16px",
+          borderBottom:"1px solid #e5e7eb",background:"#fff",position:"sticky",top:0,zIndex:10 }}>
+          <button onClick={()=>{ setLive(false); if(window.confirm("確定放棄考試？")) setPage("list"); }}
+            style={{ background:"none",border:"none",color:"#ef4444",fontSize:13,cursor:"pointer",fontFamily:"monospace" }}>✕ 放棄</button>
+          <span style={{ flex:1,fontWeight:700,fontSize:14 }}>第 {eIdx+1} / {examQs.length} 題</span>
+          <span style={{ fontFamily:"monospace",fontSize:13,fontWeight:700,color:acc }}>{fmt(secs)}</span>
+        </div>
+        <div style={{ height:3,background:"#e5e7eb" }}>
+          <div style={{ height:"100%",width:`${eIdx/examQs.length*100}%`,background:acc,transition:"width .3s" }} />
+        </div>
+        <div style={{ padding:"16px 14px 80px" }}>
+          <div style={{ display:"flex",gap:5,flexWrap:"wrap",alignItems:"center",marginBottom:14 }}>
+            <Pill>{q.yr}</Pill><DPill d={q.diff} />
+            {q.isNew && <Pill color="#6d28d9" bg="#ede9fe" border="#c4b5fd">2025新</Pill>}
+            <span style={{ marginLeft:"auto",fontFamily:"monospace",fontSize:11,color:"#9ca3af" }}>{answeredCount}/{examQs.length} 已答</span>
+          </div>
+          <p style={{ fontSize:15,lineHeight:1.8,fontWeight:700,marginBottom:18 }}>{q.q}</p>
+          {q.opts.map((o,i)=>(
+            <div key={i} onClick={()=>setAnswers(p=>({...p,[q.id]:i}))}
+              style={{ display:"flex",alignItems:"flex-start",gap:11,padding:"12px 14px",borderRadius:8,
+                fontSize:13,lineHeight:1.55,marginBottom:8,cursor:"pointer",transition:"all .15s",
+                color:ua===i?acc:"#374151",background:ua===i?lgt:"#fff",
+                border:`1px solid ${ua===i?mid:"#e5e7eb"}` }}>
+              <span style={{ fontFamily:"monospace",fontWeight:700,minWidth:16,fontSize:13,color:ua===i?acc:"#9ca3af" }}>{L[i]}</span>
+              <span>{o}</span>
+            </div>
+          ))}
+          <div style={{ display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center",marginTop:20 }}>
+            {examQs.map((eq,i)=>(
+              <div key={eq.id} onClick={()=>setEIdx(i)}
+                style={{ width:26,height:26,borderRadius:4,cursor:"pointer",display:"flex",
+                  alignItems:"center",justifyContent:"center",fontFamily:"monospace",fontSize:10,fontWeight:700,
+                  background:i===eIdx?lgt:answers[eq.id]!==undefined?"#dcfce7":"#fff",
+                  border:`1px solid ${i===eIdx?acc:answers[eq.id]!==undefined?"#4ade80":"#e5e7eb"}`,
+                  color:i===eIdx?acc:answers[eq.id]!==undefined?"#16a34a":"#9ca3af" }}>{i+1}</div>
+            ))}
+          </div>
+        </div>
+        <div style={{ position:"sticky",bottom:0,background:"#fff",borderTop:"1px solid #e5e7eb",
+          padding:"10px 14px",display:"flex",gap:8 }}>
+          {eIdx > 0
+            ? <button onClick={()=>setEIdx(i=>i-1)} style={{ flex:1,padding:"11px",background:"#f3f4f6",
+                color:"#374151",border:"1px solid #d1d5db",borderRadius:8,fontSize:13,cursor:"pointer" }}>← 上一題</button>
+            : <div style={{ flex:1 }} />}
+          {eIdx < examQs.length-1
+            ? <button onClick={()=>{ if(ua!==undefined) setEIdx(i=>i+1); }}
+                style={{ flex:1,padding:"11px",background:ua!==undefined?acc:"#d1d5db",
+                  color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,
+                  cursor:ua!==undefined?"pointer":"default" }}>下一題 →</button>
+            : <button onClick={submit} style={{ flex:1,padding:"11px",background:"#16a34a",color:"#fff",
+                border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer" }}>交卷 ✓</button>}
+        </div>
+      </div>
+    );
+  }
+
+  // RESULT
+  if (page==="result" && result) {
+    const { res, score, total, time } = result;
+    const p = Math.round(score/total*100);
+    const grade = p>=90?"優秀":p>=70?"通過":p>=50?"待加強":"需加強";
+    const col = p>=70?"#16a34a":p>=50?"#d97706":"#dc2626";
+    return (
+      <div style={{ background:"#f9fafb",minHeight:"100%",paddingBottom:80 }}>
+        <TopBar title="考試結果" onBack={()=>setPage("list")} />
+        <div style={{ textAlign:"center",padding:"28px 16px 20px",background:"#fff",borderBottom:"1px solid #e5e7eb" }}>
+          <div style={{ fontFamily:"monospace",fontSize:56,fontWeight:700,lineHeight:1,color:col }}>
+            {p}<span style={{ fontSize:26,opacity:.4 }}>%</span>
+          </div>
+          <div style={{ fontFamily:"monospace",fontSize:13,letterSpacing:".15em",color:col,marginTop:6 }}>{grade}</div>
+          <div style={{ fontFamily:"monospace",fontSize:12,color:"#9ca3af",marginTop:8 }}>答對 {score}/{total} 題 · 用時 {fmt(time)}</div>
+        </div>
+        <div style={{ padding:"12px 14px" }}>
+          {res.map(r=>(
+            <div key={r.id} style={{ background:"#fff",borderRadius:8,padding:"12px 14px",marginBottom:8,
+              border:`1px solid ${r.ok?"#bbf7d0":"#fca5a5"}`,
+              borderLeft:`3px solid ${r.ok?"#4ade80":"#f87171"}` }}>
+              <div style={{ display:"flex",gap:5,alignItems:"center",flexWrap:"wrap",marginBottom:6 }}>
+                <Pill>{r.yr}</Pill><DPill d={r.diff} />
+                <span style={{ marginLeft:"auto",fontFamily:"monospace",fontSize:12,fontWeight:700,
+                  color:r.ok?"#16a34a":"#dc2626" }}>{r.ok?"✓ 正確":"✗ 錯誤"}</span>
+              </div>
+              <p style={{ fontSize:13,color:"#374151",lineHeight:1.6,margin:0 }}>{r.q}</p>
+              {!r.ok && (
+                <>
+                  <div style={{ fontSize:12,fontFamily:"monospace",color:"#9ca3af",
+                    borderTop:"1px solid #e5e7eb",paddingTop:7,marginTop:7 }}>
+                    你：{r.ua!==undefined?`${L[r.ua]}. ${r.opts[r.ua]}`:"未作答"}<br />
+                    正確：<span style={{ color:"#16a34a" }}>{L[r.ans]}. {r.opts[r.ans]}</span>
+                  </div>
+                  <button onClick={()=>openDetail(r,"result")}
+                    style={{ marginTop:6,padding:"4px 10px",fontSize:11,background:"none",
+                      border:"1px solid #d1d5db",borderRadius:4,color:"#6b7280",fontFamily:"monospace",cursor:"pointer" }}>
+                    查看解析 →</button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ position:"sticky",bottom:0,background:"#fff",borderTop:"1px solid #e5e7eb",
+          padding:"10px 14px",display:"flex",gap:8 }}>
+          <button onClick={()=>startExam(questions)} style={{ flex:1,padding:"12px",background:acc,color:"#fff",
+            border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer" }}>再來一次</button>
+          <button onClick={()=>setPage("list")} style={{ padding:"12px 16px",background:"#f3f4f6",color:"#374151",
+            border:"1px solid #d1d5db",borderRadius:8,fontSize:13,cursor:"pointer" }}>回題庫</button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 結構學筆記資料
+// ═══════════════════════════════════════════════════════════
+const NOTES_DATA = [
+  {
+    id:"n1", title:"結構學概論", icon:"①", accent:"#7F77DD", light:"#EEEDFE", border:"#AFA9EC",
+    sections:[
+      { title:"結構三大要求", tag:"常考名詞定義", items:[
+        "強度（Strength）：材料抵抗外力產生內力的能力，判斷桿件是否足夠承載",
+        "勁度（Stiffness）：控制桿件變位與斷面變形的能力，由整體提供",
+        "韌度（Ductility）：破壞前能吸收能量的能力，與地震設計密切相關",
+        "材料力學 vs 結構學：前者針對單一桿件，後者針對整體結構系統",
+      ]},
+      { title:"平面內力四種型式", tag:"常考正負號", items:[
+        "軸力 N：垂直剖面的力；拉力（離開剖面）為 +N",
+        "剪力 V：平行剖面的力；使分離體順時針旋轉為 +V",
+        "扭矩 T：垂直剖面的力偶；雙箭頭離開剖面為 +T",
+        "彎矩 M：平行剖面的力偶；梁上半部受壓為 +M（正彎矩）",
+      ]},
+      { title:"外力分類", tag:"", items:[
+        "廣義外力：靜/活/雪載重、風力、地震、土壓力、水壓力、溫度載重、支承變位、潛變乾縮",
+        "狹義外力：集中力、均佈力、均變力、集中力偶、均佈力偶、均變力偶",
+        "靜載重（DL）≈ 自重，不隨時間改變；活載重（LL）≈ 使用荷重，可變動",
+      ]},
+      { title:"結構型式與內力對應", tag:"", table:{
+        headers:["結構型式","幾何特徵","主要內力"],
+        rows:[
+          ["梁","桿件形心軸為直線","彎矩、剪力"],
+          ["剛架","非直線若干桿件＋剛結束","彎矩、剪力、軸力"],
+          ["桁架","所有接點為鉸結束","軸力（二力桿件）"],
+          ["組合結構","剛架＋桁架","彎矩、剪力、軸力"],
+        ]
+      }},
+    ]
+  },
+  {
+    id:"n2", title:"靜定與穩定判斷", icon:"②", accent:"#1e40af", light:"#dbeafe", border:"#93c5fd",
+    sections:[
+      { title:"穩定 vs 靜定 概念區別", tag:"常考混淆點", items:[
+        "穩定：結構在任意外力下能滿足平衡，不發生剛體運動",
+        "不穩定：支承配置（外在）或桿件組合（內在）有幾何缺陷",
+        "靜定：僅靠靜力平衡方程式即可求得所有反力與內力",
+        "靜不定：有多餘束制，需加入變形相容條件才能求解",
+        "⚠ 穩定 ≠ 靜定；反力數夠不代表穩定，還需檢查幾何配置",
+      ]},
+      { title:"不穩定結構判斷規則", tag:"三鉸共線常考", items:[
+        "外在幾何不穩定：反力全部平行（整體移動）或全部交於一點（整體轉動）",
+        "內在幾何不穩定：剖面內力全部平行 / 全部交於一點 / 三鉸共線",
+        "穩定組合規則：三構件靠三鉸穩定，三鉸不得共線",
+        "支承穩定規則：需三個不共點且不平行的支承反力",
+      ]},
+      { title:"桁架靜定判斷公式", tag:"計算題必考", formula:"n = b + r − 2j　（b=桿件數，r=反力數，j=節點數）", items:[
+        "n = 0 且穩定 → 靜定桁架",
+        "n > 0 且穩定 → n 度靜不定桁架",
+        "n < 0 → 不穩定桁架（桿件不足）",
+        "簡單桁架：基本三角形出發，必為穩定且靜定",
+        "合成桁架：兩簡單桁架以三根不平行不共點桿件連接，亦為穩定靜定",
+      ]},
+      { title:"靜不定結構優點（贅餘力）", tag:"", items:[
+        "局部構件達塑性鉸後，應力可重新分配給其他構件，不會立即崩塌",
+        "靜定結構一處破壞即崩潰，靜不定結構安全性較高",
+        "高靜不定度對支承下陷更敏感（產生額外次應力）",
+      ]},
+    ]
+  },
+  {
+    id:"n3", title:"結構基本行為", icon:"③", accent:"#065f46", light:"#d1fae5", border:"#6ee7b7",
+    sections:[
+      { title:"載重傳遞路徑", tag:"常考觀念", formula:"樓版 → (梁) → 柱 → 基礎 → 地盤", items:[
+        "越下層的垂直構件所承受的累積載重越大",
+        "水平載重（地震/風）以集中力作用於各層樓版質心，由耐震構件傳至基礎",
+        "剛性樓版：整體一起水平移動，有效分配水平力給所有垂直構件",
+        "柔性樓版：各處變位不一（木造樓版），需加水平斜撐補強",
+      ]},
+      { title:"各構件受力行為", tag:"", items:[
+        "梁（水平）：主要受彎矩與剪力；梁深決定撓曲剛度（I ∝ d³）",
+        "柱（垂直）：同時受軸力＋彎矩＋剪力；短柱效應—短柱剛度大，地震時吸收更多水平力，容易剪力破壞",
+        "牆（垂直）：面內受剪（剪力牆）；面外行為類似版",
+        "版（水平）：長寬比 < 2 為雙向版（四邊傳力）；長寬比 ≥ 2 為單向版（短向傳力）",
+      ]},
+      { title:"剛心與質心（偏心扭轉）", tag:"常考設計觀念", items:[
+        "質心（重心）：質量中心，地震力作用點",
+        "剛心：側向剛度中心（水平力合力中心）",
+        "剛心與質心不重合 → 偏心距存在 → 地震時樓版扭轉，外側構件變形最大",
+        "改善①：耐震構件對稱配置使剛心靠近質心",
+        "改善②：將耐震構件配置於平面外側，增加力臂以提高抵抗扭矩的效率",
+      ]},
+      { title:"強度與韌性", tag:"理解題", items:[
+        "強度：抵抗外力的能力（應力-應變曲線的高度）",
+        "韌性：受力產生變形的能力（曲線面積 = 應變能）",
+        "強度與韌性皆佳 → 吸收最多能量 → 抗震最理想",
+        "低層建築偏重強度發揮；高層建築偏重韌性發揮",
+      ]},
+    ]
+  },
+  {
+    id:"n4", title:"低層結構系統", icon:"④", accent:"#065f46", light:"#ecfdf5", border:"#6ee7b7",
+    sections:[
+      { title:"三大系統比較", tag:"常考比較題", table:{
+        headers:["系統","構成","特性","適用"],
+        rows:[
+          ["剛構架","柱＋梁剛接","水平變形大，需韌性；空間靈活","辦公、學校"],
+          ["壁式結構","牆＋版，無明顯柱梁","剛性大；適合5層以下","集合住宅"],
+          ["二元系統","剛構架＋剪力牆/斜撐","兼顧剛度與韌性，贅餘度高","中低層各類"],
+        ]
+      }},
+      { title:"剛構架設計要點", tag:"", items:[
+        "柱梁節點須為剛性接合（抗彎矩接合）",
+        "避免短柱、短梁 → 高寬比均一，防止局部剪力集中",
+        "柱寬應大於梁寬，防止主筋衝突",
+        "鋼骨柱梁接頭需有連續板，傳遞翼板撓曲應力",
+        "RC大梁梁深初估：跨距 / 10～8；梁寬 ≈ 梁深 × 1/2～1/3",
+      ]},
+      { title:"壁式結構設計要點", tag:"常考", items:[
+        "兩方向均需足夠壁量，且牆壁盡量垂直連通各層",
+        "牆壁不偏於一側配置，避免偏心扭轉",
+        "最小壁量：地上層（近頂）12 cm/m²；一般層 15 cm/m²；地下層 20 cm/m²",
+        "斜向牆壁 X 方向有效壁量：L × cos²θ；Y 方向：L × sin²θ",
+      ]},
+    ]
+  },
+  {
+    id:"n5", title:"材料特性與構成", icon:"⑤", accent:"#6d28d9", light:"#ede9fe", border:"#c4b5fd",
+    sections:[
+      { title:"三大材料比較", tag:"常考", table:{
+        headers:["材料","強度","韌性","優點","缺點"],
+        rows:[
+          ["鋼（S）","最高","佳","韌性好、強度高、斷面省","挫屈、不耐火（>300°C）、生鏽"],
+          ["RC","中","中","耐久、防火、可塑性高","混凝土不抗拉；自重大"],
+          ["木","較低","較低","輕量、自然材料","易燃、易腐、尺寸限制"],
+        ]
+      }},
+      { title:"RC構件配筋觀念", tag:"配筋題常考", items:[
+        "RC = 用可抗拉材料（鋼筋）補強混凝土不抗拉的缺點",
+        "主筋（縱向）：抵抗軸力與撓曲應力（拉/壓）",
+        "箍筋（橫向）：抵抗剪應力，並防止主筋挫屈",
+        "牆體：格子狀鋼筋（垂直＋水平）；開口角隅加斜向補強筋",
+        "配筋原則：將鋼筋置於所有可能受拉的位置",
+      ]},
+      { title:"鋼骨斷面特性", tag:"", items:[
+        "H型鋼：翼板（Flange）抵抗彎矩；腹板（Web）抵抗剪力；有強弱軸之分，多用於梁",
+        "箱型斷面：各方向剛度均等，多用於柱",
+        "鋼骨柱梁接頭：需連續板傳遞翼板撓曲應力；溫度超過300°C強度急遽下降，需耐火被覆",
+        "輕鋼構：板厚6mm以下薄板冷軋成形，用於低層住宅框組壁系統",
+      ]},
+    ]
+  },
+  {
+    id:"n6", title:"基礎與樓版", icon:"⑥", accent:"#1e40af", light:"#eff6ff", border:"#93c5fd",
+    sections:[
+      { title:"基礎類型選擇", tag:"常考判斷", table:{
+        headers:["基礎類型","適用條件","支承假設"],
+        rows:[
+          ["獨立基礎","土層佳、載重輕","鉸接支承"],
+          ["聯合/連續基礎","柱間距小或土層中等","固定端支承"],
+          ["筏式基礎","土層軟弱、載重大","固定端支承"],
+          ["支承樁","需穿過軟弱層至硬質層","視樁頭形式"],
+          ["摩擦樁","無明顯硬質層","視樁頭形式"],
+        ]
+      }},
+      { title:"基礎設計觀念", tag:"", items:[
+        "差異沉陷：各柱腳沉陷量不均 → 上部結構產生額外次應力（靜不定結構更敏感）",
+        "獨立基礎視為鉸接；連續基礎、筏式基礎視為固定端",
+        "鋼骨柱腳：露出型（鉸接/半剛性）、包覆型（固定端）、埋入型（固定端）",
+        "基礎版外力（地盤反力）由下往上，與上部結構載重方向相反",
+      ]},
+      { title:"樓版類型", tag:"常考觀念", items:[
+        "剛性樓版（RC）：整體一起水平移動，可結合所有垂直構件共同抵抗水平力 → 耐震有利",
+        "柔性樓版（木造）：各處變位不一，需加水平斜撐補強",
+        "鋼梁＋RC樓版：剪力釘使兩者共同作用（合成梁），有效提升剛度",
+        "雙向版：長寬比 < 2，RC構造，四邊同時傳遞載重",
+        "單向版：長寬比 ≥ 2，或鋼承鈑/木擱柵等有方向性構造，沿短向傳遞",
+      ]},
+    ]
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+// 結構筆記面板
+// ═══════════════════════════════════════════════════════════
+function NotesPanel() {
+  const [activeNote, setActiveNote] = useState(null);
+  const [searchQ, setSearchQ] = useState("");
+
+  const tagColor = t => {
+    if (!t) return null;
+    if (t.includes("常考")) return { bg:"#FCEBEB", color:"#A32D2D", border:"#F09595" };
+    if (t.includes("計算")) return { bg:"#EEEDFE", color:"#3C3489", border:"#AFA9EC" };
+    return { bg:"#FAEEDA", color:"#633806", border:"#EF9F27" };
+  };
+
+  const Tag = ({ text }) => {
+    if (!text) return null;
+    const c = tagColor(text);
+    return <span style={{ display:"inline-block", fontSize:10, padding:"1px 7px",
+      borderRadius:3, fontWeight:600, background:c.bg, color:c.color,
+      border:`1px solid ${c.border}`, marginLeft:8 }}>{text}</span>;
+  };
+
+  // 搜尋過濾
+  const matchedNotes = NOTES_DATA.map(note => {
+    if (!searchQ.trim()) return { ...note, matched:false };
+    const q = searchQ.trim();
+    const inTitle = note.title.includes(q);
+    const inSections = note.sections.some(s =>
+      s.title.includes(q) ||
+      (s.items && s.items.some(i => i.includes(q))) ||
+      (s.formula && s.formula.includes(q)) ||
+      (s.table && s.table.rows.some(r => r.some(c => c.includes(q))))
+    );
+    return { ...note, matched: inTitle || inSections };
+  });
+
+  const displayNotes = searchQ.trim()
+    ? matchedNotes.filter(n => n.matched)
+    : NOTES_DATA;
+
+  // 詳細筆記頁
+  if (activeNote) {
+    const note = NOTES_DATA.find(n => n.id === activeNote);
+    return (
+      <div style={{ background:"#f9fafb", minHeight:"100%", paddingBottom:60 }}>
+        {/* TopBar */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px",
+          borderBottom:"1px solid #e5e7eb", background:"#fff",
+          position:"sticky", top:0, zIndex:10 }}>
+          <button onClick={()=>setActiveNote(null)}
+            style={{ background:"none", border:"none", color:note.accent,
+              fontSize:13, cursor:"pointer", fontFamily:"monospace", padding:0 }}>← 返回</button>
+          <span style={{ flex:1, fontWeight:700, fontSize:14 }}>{note.icon} {note.title}</span>
+        </div>
+
+        <div style={{ padding:"16px 14px 40px" }}>
+          {note.sections.map((sec, si) => (
+            <div key={si} style={{ marginBottom:24 }}>
+              {/* Section header */}
+              <div style={{ display:"flex", alignItems:"center", marginBottom:10,
+                paddingBottom:6, borderBottom:`2px solid ${note.accent}` }}>
+                <span style={{ fontWeight:700, fontSize:14, color:note.accent }}>{sec.title}</span>
+                <Tag text={sec.tag} />
+              </div>
+
+              {/* Formula */}
+              {sec.formula && (
+                <div style={{ background:note.light, borderLeft:`3px solid ${note.accent}`,
+                  borderRadius:"0 6px 6px 0", padding:"8px 12px", marginBottom:10,
+                  fontFamily:"monospace", fontSize:13, color:note.accent, fontWeight:600 }}>
+                  {sec.formula}
+                </div>
+              )}
+
+              {/* Table */}
+              {sec.table && (
+                <div style={{ overflowX:"auto", marginBottom:10 }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                    <thead>
+                      <tr>
+                        {sec.table.headers.map((h,hi) => (
+                          <th key={hi} style={{ background:note.light, color:note.accent,
+                            fontWeight:600, padding:"7px 10px", textAlign:"left",
+                            borderBottom:`1px solid ${note.border}`, whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sec.table.rows.map((row, ri) => (
+                        <tr key={ri}>
+                          {row.map((cell, ci) => (
+                            <td key={ci} style={{ padding:"6px 10px", fontSize:12,
+                              borderBottom:"0.5px solid #e5e7eb", color:"#374151",
+                              background: ri%2===0 ? "#fff" : "#fafaf9", verticalAlign:"top" }}>
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Items */}
+              {sec.items && (
+                <ul style={{ listStyle:"none", padding:0, margin:0 }}>
+                  {sec.items.map((item, ii) => {
+                    const isWarn = item.startsWith("⚠");
+                    return (
+                      <li key={ii} style={{ fontSize:13, lineHeight:1.75, color:"#374151",
+                        padding:"4px 0 4px 16px", position:"relative",
+                        borderBottom:"0.5px solid #f0f0ef",
+                        background: isWarn ? "#FAEEDA" : "transparent",
+                        borderRadius: isWarn ? 4 : 0,
+                        paddingLeft: isWarn ? 10 : 16,
+                        marginBottom: isWarn ? 4 : 0 }}>
+                        {!isWarn && <span style={{ position:"absolute", left:0, top:6,
+                          color:"#9ca3af", fontSize:11 }}>—</span>}
+                        {item}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          ))}
+
+          {/* 快速出題按鈕 */}
+          <div style={{ marginTop:16, padding:"12px 14px", background:note.light,
+            borderRadius:8, border:`1px solid ${note.border}`, textAlign:"center" }}>
+            <p style={{ fontSize:12, color:note.accent, marginBottom:8 }}>
+              練習與此筆記相關的題目
+            </p>
+            <button onClick={()=>{ window.dispatchEvent(new CustomEvent("switchTab", { detail:"建築結構" })); }}
+              style={{ padding:"8px 20px", background:note.accent, color:"#fff",
+                border:"none", borderRadius:6, fontSize:13, cursor:"pointer", fontWeight:600 }}>
+              前往建築結構題庫 →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 筆記列表頁
+  return (
+    <div style={{ background:"#f9fafb", minHeight:"100%", paddingBottom:40 }}>
+      {/* 搜尋列 */}
+      <div style={{ padding:"12px 14px", borderBottom:"1px solid #e5e7eb", background:"#fff",
+        position:"sticky", top:0, zIndex:10 }}>
+        <input value={searchQ} onChange={e=>setSearchQ(e.target.value)}
+          placeholder="搜尋筆記內容…"
+          style={{ width:"100%", padding:"9px 12px", background:"#f9fafb",
+            border:"1px solid #d1d5db", borderRadius:8, fontSize:13,
+            color:"#111", outline:"none" }} />
+      </div>
+
+      {/* 科目總覽統計 */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8,
+        padding:"12px 14px", borderBottom:"1px solid #e5e7eb" }}>
+        {[
+          { label:"章節數", val:NOTES_DATA.length, color:"#7F77DD" },
+          { label:"考點數", val:NOTES_DATA.reduce((a,n)=>a+n.sections.length,0), color:"#1e40af" },
+          { label:"題庫題數", val:Object.values(BANK).flat().length, color:"#065f46" },
+        ].map(s => (
+          <div key={s.label} style={{ background:"#fff", borderRadius:8, padding:"10px",
+            textAlign:"center", border:"0.5px solid #e5e7eb" }}>
+            <div style={{ fontFamily:"monospace", fontSize:22, fontWeight:700, color:s.color }}>{s.val}</div>
+            <div style={{ fontSize:10, color:"#9ca3af", marginTop:2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 筆記卡片列表 */}
+      <div style={{ padding:"12px 14px" }}>
+        {displayNotes.length === 0 && (
+          <p style={{ textAlign:"center", padding:"40px", color:"#9ca3af",
+            fontFamily:"monospace", fontSize:13 }}>查無符合筆記</p>
+        )}
+        {displayNotes.map(note => (
+          <div key={note.id} onClick={()=>setActiveNote(note.id)}
+            style={{ background:"#fff", borderRadius:10, padding:"14px 16px", marginBottom:10,
+              cursor:"pointer", transition:"all .15s", border:"0.5px solid #e5e7eb",
+              borderLeft:`4px solid ${note.accent}` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+              <span style={{ fontSize:18, fontWeight:700, color:note.accent }}>{note.icon}</span>
+              <span style={{ fontWeight:700, fontSize:14, color:"#1a1a18" }}>{note.title}</span>
+              <span style={{ marginLeft:"auto", fontSize:11, color:"#9ca3af",
+                fontFamily:"monospace" }}>{note.sections.length} 小節</span>
+            </div>
+            <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+              {note.sections.map((s,i) => (
+                <span key={i} style={{ fontSize:11, padding:"2px 7px", borderRadius:3,
+                  background:note.light, color:note.accent, border:`0.5px solid ${note.border}` }}>
+                  {s.title}
+                </span>
+              ))}
+            </div>
+            <div style={{ marginTop:8, fontSize:11, color:note.accent,
+              fontFamily:"monospace" }}>點擊展開筆記 →</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// 主 App
+// ═══════════════════════════════════════════════════════════
+function App() {
+  const [activeTab, setActiveTab] = useState(0);
+
+  // 監聽跨元件切換
+  useEffect(() => {
+    const handler = (e) => {
+      const idx = TABS.findIndex(t => t.key === e.detail);
+      if (idx >= 0) setActiveTab(idx + 1); // +1 because notes is tab 0
+    };
+    window.addEventListener("switchTab", handler);
+    return () => window.removeEventListener("switchTab", handler);
+  }, []);
+
+  const ALL_TABS = [
+    { key:"__notes__", label:"筆記", icon:"📋", accent:"#7F77DD", light:"#EEEDFE", mid:"#AFA9EC" },
+    ...TABS,
+  ];
+  const tab = ALL_TABS[activeTab];
+
+  return (
+    <div style={{ fontFamily:"'Noto Serif TC',Georgia,'微軟正黑體',serif",
+      background:"#f9fafb",minHeight:"100vh",display:"flex",flexDirection:"column" }}>
+
+      {/* Tab 列 */}
+      <div style={{ display:"flex",background:"#fff",borderBottom:"2px solid #e5e7eb",
+        position:"sticky",top:0,zIndex:30 }}>
+        {ALL_TABS.map((t,i) => {
+          const active = i===activeTab;
+          return (
+            <button key={t.key} onClick={()=>setActiveTab(i)}
+              style={{ flex:1,padding:"12px 6px 10px",background:"none",border:"none",
+                borderBottom:active?`3px solid ${t.accent}`:"3px solid transparent",
+                marginBottom:-2,cursor:"pointer",transition:"all .15s",
+                color:active?t.accent:"#6b7280",fontWeight:active?700:400,
+                fontFamily:"'Noto Serif TC',Georgia,serif" }}>
+              <div style={{ fontSize:18,marginBottom:2 }}>{t.icon}</div>
+              <div style={{ fontSize:12 }}>{t.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 科目色帶 */}
+      <div style={{ padding:"7px 16px",background:tab.light,borderBottom:`1px solid ${tab.mid}`,
+        display:"flex",alignItems:"center",gap:8 }}>
+        <span style={{ fontSize:16 }}>{tab.icon}</span>
+        <span style={{ fontWeight:700,fontSize:13,color:tab.accent }}>{tab.key === "__notes__" ? "結構學筆記" : tab.key}</span>
+        <span style={{ fontSize:11,color:"#6b7280",marginLeft:4 }}>
+          {{ "__notes__":"概論 · 靜定 · 行為 · 系統 · 材料 · 基礎",
+             建築結構:"力學 · 耐震 · RC · 鋼構 · 基礎",
+             法規:"建築法 · 建築師法 · 無障礙 · 規範",
+             建築構造:"材料 · 玻璃 · 施工 · 永續建築" }[tab.key]}
+        </span>
+      </div>
+
+      {/* 內容 */}
+      <div style={{ flex:1 }}>
+        {tab.key === "__notes__"
+          ? <NotesPanel />
+          : <SubjectPanel key={tab.key} tab={tab} />
+        }
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
